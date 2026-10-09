@@ -1,0 +1,30 @@
+name: Bouw Marilyn APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pak Marilyn uit
+        run: unzip -q Marilyn-3D-Android-project.zip -d werk
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Installeer Android SDK
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - name: Bouw Android APK
+        run: gradle -p werk/android --no-daemon assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Marilyn-3D-APK
+          path: werk/android/app/build/outputs/apk/debug/app-debug.apk
