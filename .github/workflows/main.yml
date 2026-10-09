@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Pak Marilyn uit
-        run: unzip -q Marilyn-3D-Android-project.zip -d werk
+        run: unzip -q Marilyn-v1.1-Android-bron.zip -d werk
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
