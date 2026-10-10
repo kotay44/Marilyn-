@@ -1,0 +1,55 @@
+name: Marilyn v8 - 3D in 2D stijl
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-marilyn-v8:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Repository ophalen
+        uses: actions/checkout@v4
+      - name: Broncode controleren en uitpakken
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "d162f121e16a1cf0a58453770b4038253248e4aa6d376a98409d680516aef10c  Marilyn-v8-3D-in-2D-stijl.zip" | sha256sum -c -
+          unzip -tq Marilyn-v8-3D-in-2D-stijl.zip
+          mkdir -p marilyn-v8
+          unzip -q Marilyn-v8-3D-in-2D-stijl.zip -d marilyn-v8
+          test -f marilyn-v8/app/build.gradle
+      - name: Java 17 instellen
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Aanwezige Android SDK controleren
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          test -f "$SDK/platforms/android-35/android.jar"
+          test -x "$SDK/build-tools/35.0.0/aapt2"
+      - name: Gradle 8.9 instellen
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Bouw Marilyn v8 APK
+        working-directory: marilyn-v8
+        shell: bash
+        run: gradle --no-daemon --stacktrace assembleDebug
+      - name: Controleer APK
+        shell: bash
+        run: test -s marilyn-v8/app/build/outputs/apk/debug/app-debug.apk
+      - name: APK beschikbaar maken
+        uses: actions/upload-artifact@v4
+        with:
+          name: Marilyn-v8-3D-APK
+          path: marilyn-v8/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
