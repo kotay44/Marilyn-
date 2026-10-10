@@ -1,0 +1,59 @@
+name: Marilyn v7 - Filmgezicht 3D (hersteld)
+
+# Uitvoeren via Actions > Run workflow
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-marilyn-v7:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Repository ophalen
+        uses: actions/checkout@v4
+
+      - name: Controleer aangeleverde broncode
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f 'Marilyn-v7-Android-broncode.zip' || (echo 'Plaats Marilyn-v7-Android-broncode.zip in de hoofdmap van de repository' && exit 1)
+          echo '437be65cae174d426f6fb235ea965a6ce1fd20c53c9ab47038a3c4b18c95bec1  Marilyn-v7-Android-broncode.zip' | sha256sum -c -
+          unzip -tq 'Marilyn-v7-Android-broncode.zip'
+          mkdir -p marilyn-v7
+          unzip -q 'Marilyn-v7-Android-broncode.zip' -d marilyn-v7
+          test -f marilyn-v7/settings.gradle
+          test -f marilyn-v7/app/build.gradle
+
+      - name: Java 17 instellen
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Android SDK instellen
+        uses: android-actions/setup-android@v3
+
+      - name: Android API 35 installeren
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - name: Gradle 8.9 instellen
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Bouw Marilyn v7 APK
+        working-directory: marilyn-v7
+        run: gradle --no-daemon --stacktrace assembleDebug
+
+      - name: Controleer APK
+        run: test -s marilyn-v7/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: APK beschikbaar maken
+        uses: actions/upload-artifact@v4
+        with:
+          name: Marilyn-v7-filmgezicht-APK
+          path: marilyn-v7/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
