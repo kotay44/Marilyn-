@@ -1,0 +1,67 @@
+name: Marilyn v7 - Android SDK hersteld
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-marilyn-v7:
+    # GitHub's Ubuntu 24.04 runner bevat Android API 35 en build-tools 35.0.0.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Repository ophalen
+        uses: actions/checkout@v4
+
+      - name: Broncode controleren en uitpakken
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f 'Marilyn-v7-Android-broncode.zip' || { echo 'FOUT: broncode ZIP ontbreekt in de hoofdmap'; exit 1; }
+          echo '437be65cae174d426f6fb235ea965a6ce1fd20c53c9ab47038a3c4b18c95bec1  Marilyn-v7-Android-broncode.zip' | sha256sum -c -
+          unzip -tq 'Marilyn-v7-Android-broncode.zip'
+          mkdir -p marilyn-v7
+          unzip -q 'Marilyn-v7-Android-broncode.zip' -d marilyn-v7
+          test -f marilyn-v7/settings.gradle
+          test -f marilyn-v7/app/build.gradle
+
+      - name: Java 17 instellen
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Aanwezige Android SDK 35 controleren
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          echo "Android SDK: $SDK"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          test -f "$SDK/platforms/android-35/android.jar" || { echo 'FOUT: Android SDK Platform 35 ontbreekt op de runner'; exit 1; }
+          test -x "$SDK/build-tools/35.0.0/aapt2" || { echo 'FOUT: Android build-tools 35.0.0 ontbreken op de runner'; exit 1; }
+          echo 'Android SDK 35 en build-tools zijn gereed; geen herinstallatie nodig.'
+
+      - name: Gradle 8.9 instellen
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Bouw Marilyn v7 APK
+        working-directory: marilyn-v7
+        shell: bash
+        run: gradle --no-daemon --stacktrace assembleDebug
+
+      - name: Controleer APK
+        shell: bash
+        run: test -s marilyn-v7/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: APK beschikbaar maken
+        uses: actions/upload-artifact@v4
+        with:
+          name: Marilyn-v7-APK-SDK-herstel
+          path: marilyn-v7/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
